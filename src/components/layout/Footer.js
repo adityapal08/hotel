@@ -86,7 +86,6 @@ export default function Footer() {
                 <span>redrootsvilla@gmail.com</span>
               </a>
 
-              {/* WhatsApp Caretaker Chat (Temporarily disabled)
               <a
                 href="https://wa.me/919363432220?text=Hello,%20I%20would%20like%20to%20know%20availability%20for%20Red%20Roots%20Villa."
                 target="_blank"
@@ -96,7 +95,6 @@ export default function Footer() {
                 <MessageCircle className="w-4 h-4" />
                 <span>Chat with Caretaker on WhatsApp</span>
               </a>
-              */}
             </div>
 
             {/* Navigation links matching reference */}
@@ -118,9 +116,9 @@ export default function Footer() {
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <p className="text-xs text-gray-400">
             @ 2025.Red Roots Villla. All Rights Reserved.{' '}
-            <span className="text-[#4a90e2] hover:underline cursor-pointer">
-              Designed By Viswaroop.
-            </span>
+            {/* <span className="text-[#4a90e2] hover:underline cursor-pointer">
+              Designed By Gobdu IT Services.
+            </span> */}
           </p>
 
           <p className="text-[11px] text-gray-500">
