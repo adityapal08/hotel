@@ -56,11 +56,14 @@ export default function BrandLogo({
   const containerRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
-  const shouldReduceMotion = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+  const rawReducedMotion = useReducedMotion();
+  const shouldReduceMotion = mounted ? Boolean(rawReducedMotion) : false;
 
-  // Mark entrance complete after initial animation
+  // Mark entrance and mounting complete after initial animation
   useEffect(() => {
-    const timer = setTimeout(() => setHasEntered(true), 1200);
+    setMounted(true);
+    const timer = setTimeout(() => setHasEntered(true), 400);
     return () => clearTimeout(timer);
   }, []);
 
@@ -134,6 +137,10 @@ export default function BrandLogo({
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={handleMouseLeave}
+        onPointerLeave={handleMouseLeave}
+        onPointerCancel={handleMouseLeave}
+        onTouchEnd={handleMouseLeave}
+        onClick={handleMouseLeave}
         initial={{ opacity: 0, scale: 0.75, rotate: -15, y: -12 }}
         animate={{
           opacity: 1,
@@ -282,7 +289,7 @@ export default function BrandLogo({
                       }
                       transition={{
                         repeat: Infinity,
-                        repeatDelay: isHovered ? 1.2 : 5.5,
+                        repeatDelay: isHovered ? 0.6 : 2.4,
                         duration: 1.15,
                         ease: [0.16, 1, 0.3, 1],
                       }}
@@ -301,8 +308,8 @@ export default function BrandLogo({
                       }
                       transition={{
                         repeat: Infinity,
-                        repeatDelay: isHovered ? 1.2 : 5.5,
-                        duration: 1.6,
+                        repeatDelay: isHovered ? 0.6 : 2.4,
+                        duration: 1.5,
                         delay: 0.1,
                         ease: 'easeInOut',
                       }}
@@ -336,11 +343,7 @@ export default function BrandLogo({
           className="flex flex-col text-left transition-colors duration-200"
         >
           <div className="flex items-center gap-1.5">
-            <span
-              className={`font-serif text-sm sm:text-base md:text-lg font-bold tracking-tight uppercase leading-none transition-colors duration-300 ${
-                isScrolled ? 'text-white' : 'text-zinc-950'
-              }`}
-            >
+            <span className="font-serif text-sm sm:text-base md:text-lg font-bold tracking-tight uppercase leading-none text-white drop-shadow-sm">
               RED ROOTS
             </span>
             <span className="font-serif text-sm sm:text-base md:text-lg font-normal italic text-[#f5b027] leading-none drop-shadow-xs">
@@ -350,11 +353,7 @@ export default function BrandLogo({
 
           <div className="hidden min-[420px]:flex items-center gap-1.5 mt-1">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df9700] inline-block animate-pulse shadow-[0_0_6px_#df9700]" />
-            <span
-              className={`text-[9px] sm:text-[10px] tracking-[0.24em] uppercase font-semibold transition-colors duration-300 ${
-                isScrolled ? 'text-gray-300' : 'text-zinc-900'
-              }`}
-            >
+            <span className="text-[9px] sm:text-[10px] tracking-[0.24em] uppercase font-semibold text-gray-300">
               Moratandi • Pondicherry
             </span>
           </div>

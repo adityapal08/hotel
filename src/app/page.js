@@ -61,6 +61,7 @@ export default function Home() {
 
       {/* Floating Concierge Action Buttons with Physics Hover */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
+        {/* WhatsApp Floating Action (Temporarily disabled)
         <motion.a
           whileHover={{ scale: 1.1, rotate: 3 }}
           whileTap={{ scale: 0.9 }}
@@ -75,6 +76,7 @@ export default function Home() {
             WhatsApp Concierge
           </span>
         </motion.a>
+        */}
 
         <motion.button
           whileHover={{ scale: 1.1, rotate: -3 }}

@@ -1,18 +1,19 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { motion, useSpring, useMotionValue } from 'framer-motion';
+import { useRef, useState, useEffect } from 'react';
+import { motion, useSpring, useMotionValue, useReducedMotion } from 'framer-motion';
 
 export default function MagneticButton({
   children,
   className = '',
   onClick,
-  variant = 'primary', // 'primary', 'gold', 'outline', 'dark'
+  variant = 'primary', // 'primary', 'gold', 'outline', 'dark', 'goldGlow'
   strength = 0.35,
   ...props
 }) {
   const ref = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -22,7 +23,7 @@ export default function MagneticButton({
   const smoothY = useSpring(y, springConfig);
 
   const handleMouseMove = (e) => {
-    if (!ref.current) return;
+    if (prefersReducedMotion || !ref.current) return;
     const { clientX, clientY } = e;
     const { left, top, width, height } = ref.current.getBoundingClientRect();
     const centerX = left + width / 2;
@@ -33,11 +34,22 @@ export default function MagneticButton({
     y.set(distanceY);
   };
 
-  const handleMouseLeave = () => {
+  const resetPhysics = () => {
     x.set(0);
     y.set(0);
     setIsHovered(false);
   };
+
+  const handleClick = (e) => {
+    resetPhysics();
+    if (onClick) onClick(e);
+  };
+
+  useEffect(() => {
+    return () => {
+      resetPhysics();
+    };
+  }, []);
 
   const baseStyles =
     'relative inline-flex items-center justify-center font-bold tracking-[0.18em] uppercase text-xs sm:text-sm rounded-full overflow-hidden transition-all duration-300 cursor-pointer select-none';
@@ -58,20 +70,28 @@ export default function MagneticButton({
       ref={ref}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={handleMouseLeave}
-      onClick={onClick}
-      style={{ x: smoothX, y: smoothY }}
-      whileTap={{ scale: 0.94 }}
+      onMouseLeave={resetPhysics}
+      onPointerLeave={resetPhysics}
+      onPointerCancel={resetPhysics}
+      onTouchEnd={resetPhysics}
+      onBlur={resetPhysics}
+      onClick={handleClick}
+      style={{ x: prefersReducedMotion ? 0 : smoothX, y: prefersReducedMotion ? 0 : smoothY }}
+      whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+      whileTap={prefersReducedMotion ? {} : { scale: 0.94 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
       className={`${baseStyles} ${variants[variant] || variants.primary} ${className}`}
       {...props}
     >
-      {/* Subtle shine ray that sweeps on hover */}
-      <motion.span
-        initial={{ x: '-100%' }}
-        animate={{ x: isHovered ? '200%' : '-100%' }}
-        transition={{ duration: 0.8, ease: 'easeInOut' }}
-        className="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12 pointer-events-none"
-      />
+      {/* Dynamic specular sweep ray */}
+      {!prefersReducedMotion && (
+        <motion.span
+          initial={{ x: '-120%' }}
+          animate={{ x: isHovered ? '220%' : '-120%' }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-20 pointer-events-none"
+        />
+      )}
 
       <span className="relative z-10 flex items-center gap-2">{children}</span>
     </motion.button>

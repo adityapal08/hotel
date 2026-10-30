@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import {
   ROOM_CONFIG,
-  checkAvailability,
-  createBooking,
+  getAvailabilityForRange,
+  reserveBooking,
+  cancelBooking,
   getBookingByReference,
+  getAllBookings,
 } from '@/lib/db';
 
-/**
- * Validates date string in YYYY-MM-DD format.
- */
 function isValidDate(dateStr) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
   const d = new Date(dateStr);
@@ -17,14 +16,14 @@ function isValidDate(dateStr) {
 
 /**
  * GET /api/bookings
- * Check date availability, calculate price estimate, or retrieve booking by reference.
+ * Check availability, retrieve booking by reference, or list bookings.
  */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const ref = searchParams.get('ref');
 
-    // Retrieve booking by reference ID
+    // 1. Retrieve booking by reference ID
     if (ref) {
       const booking = getBookingByReference(ref.trim().toUpperCase());
       if (!booking) {
@@ -36,10 +35,10 @@ export async function GET(request) {
       return NextResponse.json({ success: true, booking });
     }
 
-    // Check availability and calculate price for date range
+    // 2. Check availability and calculate price for date range
     const checkIn = searchParams.get('checkIn');
     const checkOut = searchParams.get('checkOut');
-    const roomType = searchParams.get('roomType') || 'Entire 3BHK Private Pool Villa';
+    const roomType = searchParams.get('roomType');
     const rooms = parseInt(searchParams.get('rooms') || '1', 10);
 
     if (checkIn && checkOut) {
@@ -69,33 +68,34 @@ export async function GET(request) {
         );
       }
 
-      const diffTime = checkOutDate.getTime() - checkInDate.getTime();
-      const nights = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
-
-      const config = ROOM_CONFIG[roomType] || ROOM_CONFIG['Entire 3BHK Private Pool Villa'];
-      const pricePerNight = config.pricePerNight;
-      const totalPrice = nights * pricePerNight * Math.max(1, rooms);
-
-      const isAvailable = checkAvailability(roomType, checkIn, checkOut);
+      const results = getAvailabilityForRange(checkIn, checkOut, roomType, rooms);
+      const selectedResult = results[0] || null;
 
       return NextResponse.json({
         success: true,
-        available: isAvailable,
-        nights,
-        roomType,
-        pricePerNight,
-        totalPrice,
+        available: selectedResult ? selectedResult.isAvailable : false,
+        status: selectedResult ? selectedResult.status : 'sold_out',
+        minAvailableRooms: selectedResult ? selectedResult.minAvailableRooms : 0,
+        nights: selectedResult ? selectedResult.nights : 1,
+        roomType: selectedResult ? selectedResult.roomType : roomType,
+        pricePerNight: selectedResult ? selectedResult.pricePerNight : 0,
+        totalPrice: selectedResult ? selectedResult.totalPrice : 0,
+        dailyBreakdown: selectedResult ? selectedResult.dailyBreakdown : [],
+        allOptions: results,
       });
     }
 
+    // 3. List recent bookings (admin/verification)
+    const bookings = getAllBookings(25);
     return NextResponse.json({
       success: true,
       message: 'Red Roots Villa Booking API is active.',
+      bookings,
     });
   } catch (error) {
     console.error('Error in GET /api/bookings:', error);
     return NextResponse.json(
-      { success: false, error: 'Server error retrieving booking data.' },
+      { success: false, error: error.message || 'Server error retrieving booking data.' },
       { status: 500 }
     );
   }
@@ -103,7 +103,8 @@ export async function GET(request) {
 
 /**
  * POST /api/bookings
- * Validates, calculates, checks availability, and stores a verified reservation.
+ * Validates guest data, rechecks inventory atomically, decrements inventory,
+ * and creates confirmed booking in SQLite.
  */
 export async function POST(request) {
   try {
@@ -184,7 +185,7 @@ export async function POST(request) {
     const selectedRoomConfig = ROOM_CONFIG[roomType];
     if (!selectedRoomConfig) {
       return NextResponse.json(
-        { success: false, error: 'Selected accommodation type is not recognized.' },
+        { success: false, error: `Accommodation type "${roomType}" is not recognized.` },
         { status: 400 }
       );
     }
@@ -207,64 +208,90 @@ export async function POST(request) {
       );
     }
 
-    if (isNaN(parsedRooms) || parsedRooms < 1 || parsedRooms > 3) {
+    if (isNaN(parsedRooms) || parsedRooms < 1 || parsedRooms > selectedRoomConfig.totalInventory) {
       return NextResponse.json(
-        { success: false, error: 'Invalid room count selected.' },
+        { success: false, error: `Invalid room count. You can select between 1 and ${selectedRoomConfig.totalInventory} rooms.` },
         { status: 400 }
       );
     }
 
-    // 4. Calculate Nights & Price
-    const diffTime = checkOutDate.getTime() - checkInDate.getTime();
-    const nights = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
-    const pricePerNight = selectedRoomConfig.pricePerNight;
-    const totalPrice = nights * pricePerNight * parsedRooms;
-
-    // 5. Database Availability Verification (Prevent Overlapping Double-Bookings)
-    const isAvailable = checkAvailability(roomType, checkIn, checkOut);
-    if (!isAvailable) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'This accommodation is already reserved for the selected dates. Please choose different dates or select another suite.',
-        },
-        { status: 409 }
-      );
-    }
-
-    // 6. Save Booking to Database
-    const booking = createBooking({
+    // 4. Atomic SQLite Reservation & Inventory Decrement
+    // reserveBooking handles transaction lock and prevents concurrent overselling
+    const { booking, updatedInventory } = reserveBooking({
       guestName,
       email,
       phone,
       checkIn,
       checkOut,
-      nights,
       adults: parsedAdults,
       children: parsedChildren,
       rooms: parsedRooms,
       roomType,
-      pricePerNight,
-      totalPrice,
       specialRequests,
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Your reservation has been confirmed and stored in our database.',
+        message: 'Your reservation has been confirmed and inventory updated.',
         booking,
+        updatedInventory,
       },
       { status: 201 }
     );
   } catch (error) {
     console.error('Error processing booking in POST /api/bookings:', error);
+    // 409 Conflict if sold out or insufficient inventory
+    const isConflict =
+      error.message &&
+      (error.message.includes('Sold Out') ||
+        error.message.includes('available') ||
+        error.message.includes('conflict'));
+
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'An unexpected error occurred while saving your booking.',
       },
+      { status: isConflict ? 409 : 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/bookings
+ * Allows booking cancellation and atomic inventory restoration.
+ */
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { reference, action } = body;
+
+    if (!reference) {
+      return NextResponse.json(
+        { success: false, error: 'Please provide a valid booking reference.' },
+        { status: 400 }
+      );
+    }
+
+    if (action === 'cancel') {
+      const { booking, restoredInventory } = cancelBooking(reference.trim().toUpperCase());
+      return NextResponse.json({
+        success: true,
+        message: `Booking ${reference} has been cancelled and room inventory restored.`,
+        booking,
+        restoredInventory,
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Unrecognized action. Supported actions: "cancel".' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error in PATCH /api/bookings:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to update booking.' },
       { status: 500 }
     );
   }

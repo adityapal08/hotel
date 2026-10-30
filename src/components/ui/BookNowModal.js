@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -20,30 +20,49 @@ import {
   AlertCircle,
   MessageCircle,
   ChevronDown,
+  Layers,
+  RotateCcw,
+  ShieldCheck,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react';
-import { submitBooking } from '@/services/bookingService';
+import { submitBooking, checkAvailabilityApi, cancelBookingApi } from '@/services/bookingService';
 
-const ROOM_OPTIONS = [
+export const ROOM_OPTIONS = [
   {
     name: 'Entire 3BHK Private Pool Villa',
     rate: 15000,
     maxGuests: 8,
-    maxRooms: 1,
+    maxRooms: 2,
     tagline: 'Exclusive 3BHK villa with private swimming pool & kitchen',
   },
   {
     name: 'The Master King Suite',
     rate: 6500,
     maxGuests: 3,
-    maxRooms: 1,
+    maxRooms: 4,
     tagline: 'Ground-floor master suite with private en-suite & garden patio',
   },
   {
     name: 'The Garden Deluxe Suite',
     rate: 5500,
     maxGuests: 2,
-    maxRooms: 1,
+    maxRooms: 6,
     tagline: 'Upper-level sunlit suite with emerald curtains & serene views',
+  },
+  {
+    name: 'Deluxe Room',
+    rate: 4500,
+    maxGuests: 3,
+    maxRooms: 10,
+    tagline: 'Air-conditioned luxury room with king bed & en-suite bath',
+  },
+  {
+    name: 'Premium Room',
+    rate: 5800,
+    maxGuests: 4,
+    maxRooms: 5,
+    tagline: 'Luxury pool-view room with private balcony & executive amenities',
   },
 ];
 
@@ -53,6 +72,14 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+
+  // Cancellation test state
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationMessage, setCancellationMessage] = useState('');
+
+  // Live availability check state
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availabilityData, setAvailabilityData] = useState(null);
 
   const [todayStr, setTodayStr] = useState('');
   const [formData, setFormData] = useState({
@@ -64,7 +91,7 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
     adults: 2,
     children: 0,
     rooms: 1,
-    roomType: 'Entire 3BHK Private Pool Villa',
+    roomType: 'Deluxe Room',
     specialRequests: '',
   });
 
@@ -79,15 +106,41 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
     if (isOpen) {
       setStep(1);
       setErrorMessage('');
+      setCancellationMessage('');
       setConfirmedBooking(null);
       setFormData((prev) => ({
         ...prev,
-        checkIn: initialData?.checkIn || prev.checkIn || today,
-        checkOut: initialData?.checkOut || prev.checkOut || tomorrowStr,
+        checkIn: initialData?.checkIn || prev.checkIn || (today <= '2026-11-01' ? '2026-11-01' : today),
+        checkOut: initialData?.checkOut || prev.checkOut || (today <= '2026-11-01' ? '2026-11-03' : tomorrowStr),
         ...(initialData && Object.keys(initialData).length > 0 ? initialData : {}),
       }));
     }
   }, [isOpen, initialData]);
+
+  // Live check availability on modal inputs
+  const checkLiveInventory = useCallback(async (inDate, outDate, roomT, reqRooms) => {
+    if (!inDate || !outDate || inDate >= outDate) return;
+    setCheckingAvailability(true);
+    try {
+      const res = await checkAvailabilityApi(inDate, outDate, roomT, reqRooms);
+      if (res.success && res.results && res.results.length > 0) {
+        setAvailabilityData(res.results[0]);
+      } else {
+        setAvailabilityData(null);
+      }
+    } catch (err) {
+      console.error('Modal availability check error:', err);
+      setAvailabilityData(null);
+    } finally {
+      setCheckingAvailability(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && formData.checkIn && formData.checkOut && formData.checkIn < formData.checkOut) {
+      checkLiveInventory(formData.checkIn, formData.checkOut, formData.roomType, formData.rooms);
+    }
+  }, [isOpen, formData.checkIn, formData.checkOut, formData.roomType, formData.rooms, checkLiveInventory]);
 
   // Calculations
   const checkInDate = formData.checkIn ? new Date(formData.checkIn) : null;
@@ -100,7 +153,7 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
 
   const selectedRoomConfig =
     ROOM_OPTIONS.find((r) => r.name === formData.roomType) || ROOM_OPTIONS[0];
-  const currentRate = selectedRoomConfig.rate;
+  const currentRate = availabilityData?.pricePerNight || selectedRoomConfig.rate;
   const estimatedTotal = calculatedNights * currentRate * formData.rooms;
 
   const validateForm = () => {
@@ -128,6 +181,15 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
     }
     if (calculatedNights < 1) {
       setErrorMessage('Check-out date must be at least one day after check-in date.');
+      return false;
+    }
+
+    if (availabilityData && !availabilityData.isAvailable) {
+      setErrorMessage(
+        availabilityData.minAvailableRooms === 0
+          ? `"${formData.roomType}" is completely Sold Out for the selected dates. Please choose different dates.`
+          : `Only ${availabilityData.minAvailableRooms} room(s) available for these dates, but you selected ${formData.rooms}.`
+      );
       return false;
     }
 
@@ -175,6 +237,29 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
     }
   };
 
+  const handleCancelBooking = async () => {
+    if (!confirmedBooking?.reference) return;
+    setIsCancelling(true);
+    setCancellationMessage('');
+
+    try {
+      const result = await cancelBookingApi(confirmedBooking.reference);
+      if (result.success) {
+        setCancellationMessage(
+          `✓ Booking ${confirmedBooking.reference} cancelled successfully. ${confirmedBooking.rooms} room(s) restored back to SQLite inventory for dates ${confirmedBooking.check_in} to ${confirmedBooking.check_out}.`
+        );
+        // Refresh local availability cache
+        checkLiveInventory(formData.checkIn, formData.checkOut, formData.roomType, formData.rooms);
+      } else {
+        throw new Error(result.error || 'Cancellation failed.');
+      }
+    } catch (err) {
+      setCancellationMessage(`Cancellation failed: ${err.message}`);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const copyRefToClipboard = () => {
     if (confirmedBooking?.reference) {
       navigator.clipboard.writeText(confirmedBooking.reference);
@@ -211,7 +296,7 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-[#8A7E6D] block mb-1">
-                    Red Roots Villa • Pondicherry
+                    Red Roots Villa • Dynamic Inventory Reservation
                   </span>
                   <h3 className="font-serif text-2xl sm:text-[26px] font-normal text-[#1C1B1A] tracking-tight">
                     {step === 1 && 'Reserve Your Stay'}
@@ -396,11 +481,41 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                         </div>
                       </div>
 
-                      <div className="mt-2.5 pt-2 border-t border-[#F0EAE1] flex items-center justify-between text-[11px] text-[#7A746B]">
-                        <span>Standard Check-in: 2:00 PM</span>
-                        <span className="font-medium text-[#1C1B1A]">
+                      {/* Real-time Inventory Verification Banner */}
+                      <div className="mt-2.5 pt-2 border-t border-[#F0EAE1] flex items-center justify-between text-[11px]">
+                        <span className="text-[#7A746B]">
                           {calculatedNights} {calculatedNights === 1 ? 'Night' : 'Nights'} Stay
                         </span>
+
+                        <div>
+                          {checkingAvailability ? (
+                            <span className="text-[#8A7E6D] flex items-center gap-1 font-medium">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Verifying SQLite...
+                            </span>
+                          ) : availabilityData ? (
+                            availabilityData.status === 'sold_out' ? (
+                              <span className="text-[#B83E34] font-semibold flex items-center gap-1">
+                                <XCircle className="w-3.5 h-3.5" /> Sold Out for Dates
+                              </span>
+                            ) : availabilityData.status === 'insufficient' ? (
+                              <span className="text-[#B87024] font-semibold flex items-center gap-1">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Only{' '}
+                                {availabilityData.minAvailableRooms} Left
+                              </span>
+                            ) : availabilityData.status === 'limited' ? (
+                              <span className="text-[#996515] font-semibold flex items-center gap-1">
+                                ⚡ Limited: {availabilityData.minAvailableRooms} Left
+                              </span>
+                            ) : (
+                              <span className="text-[#2F5238] font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Available (
+                                {availabilityData.minAvailableRooms} rooms)
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-[#7A746B]">Checking dates...</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -449,22 +564,17 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                           Rooms
                         </label>
                         <select
-                          disabled={formData.roomType === 'Entire 3BHK Private Pool Villa'}
                           value={formData.rooms}
                           onChange={(e) =>
                             setFormData({ ...formData, rooms: parseInt(e.target.value, 10) })
                           }
-                          className="w-full px-2.5 py-2 text-xs sm:text-sm bg-white border border-[#DDD6CC] rounded-xl focus:outline-none focus:border-[#7A6E5D] text-[#1C1B1A] font-medium cursor-pointer disabled:opacity-60 shadow-xs"
+                          className="w-full px-2.5 py-2 text-xs sm:text-sm bg-white border border-[#DDD6CC] rounded-xl focus:outline-none focus:border-[#7A6E5D] text-[#1C1B1A] font-medium cursor-pointer shadow-xs"
                         >
-                          {formData.roomType === 'Entire 3BHK Private Pool Villa' ? (
-                            <option value={1}>1 Villa</option>
-                          ) : (
-                            [1, 2].map((n) => (
-                              <option key={n} value={n}>
-                                {n} {n === 1 ? 'Room' : 'Rooms'}
-                              </option>
-                            ))
-                          )}
+                          {Array.from({ length: selectedRoomConfig.maxRooms || 5 }, (_, i) => i + 1).map((n) => (
+                            <option key={n} value={n}>
+                              {n} {n === 1 ? 'Room' : 'Rooms'}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -542,10 +652,11 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                       <div>
                         <span className="text-[11px] text-[#7A7266] block">
                           ₹{currentRate.toLocaleString('en-IN')} / night × {calculatedNights}{' '}
-                          {calculatedNights === 1 ? 'night' : 'nights'}
+                          {calculatedNights === 1 ? 'night' : 'nights'} × {formData.rooms}{' '}
+                          {formData.rooms === 1 ? 'room' : 'rooms'}
                         </span>
                         <span className="text-xs font-medium text-[#2E2C29]">
-                          Taxes & caretaker assistance included
+                          Direct booking • Dynamic inventory hold
                         </span>
                       </div>
                       <div className="text-right">
@@ -562,9 +673,18 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                     <div className="pt-2">
                       <button
                         type="submit"
-                        className="w-full py-3.5 px-6 rounded-xl text-xs font-semibold uppercase tracking-[0.16em] text-[#FAF8F5] bg-[#1E1C1A] hover:bg-[#322F2C] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.99]"
+                        disabled={availabilityData && !availabilityData.isAvailable}
+                        className={`w-full py-3.5 px-6 rounded-xl text-xs font-semibold uppercase tracking-[0.16em] text-[#FAF8F5] bg-[#1E1C1A] hover:bg-[#322F2C] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.99] ${
+                          availabilityData && !availabilityData.isAvailable
+                            ? 'opacity-50 cursor-not-allowed'
+                            : ''
+                        }`}
                       >
-                        <span>Review Reservation Details</span>
+                        <span>
+                          {availabilityData && !availabilityData.isAvailable
+                            ? 'Sold Out For Selected Dates'
+                            : 'Review Reservation Details'}
+                        </span>
                         <ArrowRight className="w-4 h-4 stroke-[2]" />
                       </button>
                     </div>
@@ -665,7 +785,7 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                     <div className="bg-[#FAF7F2] border border-[#E5DFD4] p-4.5 rounded-xl space-y-2">
                       <div className="flex items-center justify-between text-xs text-[#5E584F]">
                         <span>
-                          {formData.roomType} ({calculatedNights} nights × ₹
+                          {formData.roomType} ({calculatedNights} nights × {formData.rooms} rooms × ₹
                           {currentRate.toLocaleString('en-IN')})
                         </span>
                         <span>₹{estimatedTotal.toLocaleString('en-IN')}</span>
@@ -686,8 +806,8 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
 
                     <div className="px-1 text-center">
                       <p className="text-[11px] text-[#7A746B] leading-relaxed">
-                        No online payment required. Pay directly upon check-in via UPI or cash to
-                        the property caretaker.
+                        On confirmation, room inventory is atomically locked in SQLite. Pay upon check-in
+                        via UPI or cash.
                       </p>
                     </div>
 
@@ -712,7 +832,7 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                         {loading ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Confirming...</span>
+                            <span>Reserving SQLite...</span>
                           </>
                         ) : (
                           <>
@@ -732,7 +852,7 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.25 }}
-                    className="text-center py-2 space-y-5"
+                    className="text-center py-2 space-y-4"
                   >
                     {/* Refined Luxury Check Icon */}
                     <div className="w-14 h-14 rounded-full bg-[#EBF2ED] text-[#2F5238] flex items-center justify-center mx-auto border border-[#D1E0D4]">
@@ -741,14 +861,14 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
 
                     <div>
                       <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8A7E6D] block">
-                        Reservation Verified
+                        Reservation Verified & Locked
                       </span>
                       <h4 className="font-serif text-2xl sm:text-3xl font-normal text-[#1C1B1A] mt-1">
                         We Look Forward to Your Visit
                       </h4>
                       <p className="text-xs sm:text-sm text-[#666056] mt-1.5 max-w-sm mx-auto font-light leading-relaxed">
-                        Your stay at Red Roots Villa, Moratandi - Pondicherry has been registered in
-                        our reservation register.
+                        Your stay at Red Roots Villa, Moratandi - Pondicherry has been registered and
+                        inventory has been atomically deducted from the database.
                       </p>
                     </div>
 
@@ -786,7 +906,7 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                       <div className="flex justify-between border-b border-[#EDE7DE] pb-1.5">
                         <span className="text-[#7A746B]">Accommodation:</span>
                         <span className="font-medium text-[#1C1B1A]">
-                          {confirmedBooking.room_type}
+                          {confirmedBooking.room_type} ({confirmedBooking.rooms} {confirmedBooking.rooms === 1 ? 'Room' : 'Rooms'})
                         </span>
                       </div>
                       <div className="flex justify-between border-b border-[#EDE7DE] pb-1.5">
@@ -811,24 +931,44 @@ export default function BookNowModal({ isOpen, onClose, initialData = {} }) {
                       </div>
                     </div>
 
-                    {/* Concierge Actions */}
-                    <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-                      <a
-                        href={`https://wa.me/919363432220?text=${encodeURIComponent(
-                          `Hello Red Roots Villa, I have confirmed a reservation. Reference: ${confirmedBooking.reference}. Dates: ${confirmedBooking.check_in} to ${confirmedBooking.check_out}. Primary Guest: ${confirmedBooking.guest_name}.`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 py-3 px-4 rounded-xl text-xs font-semibold uppercase tracking-[0.14em] text-white bg-[#1E503A] hover:bg-[#256348] transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        <span>Chat With Concierge</span>
-                      </a>
+                    {/* Cancellation message feedback */}
+                    {cancellationMessage && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 text-xs text-left">
+                        {cancellationMessage}
+                      </div>
+                    )}
 
+                    {/* Testing Requirement: Cancellation and Inventory Restoration Button */}
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={handleCancelBooking}
+                        disabled={isCancelling || !!cancellationMessage}
+                        className="w-full py-2.5 px-4 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isCancelling ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Cancelling and restoring inventory...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>
+                              {cancellationMessage
+                                ? 'Inventory Restored in SQLite'
+                                : 'Test Cancel Booking & Restore SQLite Inventory'}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="pt-2">
                       <button
                         type="button"
                         onClick={onClose}
-                        className="py-3 px-6 rounded-xl border border-[#D9D1C5] bg-white hover:bg-[#F3EFE9] text-[#3D3A36] text-xs font-semibold uppercase tracking-[0.14em] transition-colors cursor-pointer"
+                        className="w-full py-3 px-6 rounded-xl border border-[#D9D1C5] bg-white hover:bg-[#F3EFE9] text-[#3D3A36] text-xs font-semibold uppercase tracking-[0.14em] transition-colors cursor-pointer"
                       >
                         Done
                       </button>

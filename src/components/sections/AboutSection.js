@@ -35,7 +35,7 @@ export default function AboutSection({ onOpenModal }) {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: false, amount: 0.2 }}
             transition={{ duration: 0.6 }}
             className="inline-flex items-center gap-2 mb-3"
           >
@@ -49,7 +49,7 @@ export default function AboutSection({ onOpenModal }) {
           <motion.h2
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: false, amount: 0.2 }}
             transition={{ duration: 0.6, delay: 0.1 }}
             className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0b132b] uppercase"
           >
@@ -64,7 +64,7 @@ export default function AboutSection({ onOpenModal }) {
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: false, amount: 0.2, margin: '-20px' }}
             transition={{ duration: 0.8 }}
             className="lg:col-span-6 relative flex justify-center lg:justify-start"
           >
@@ -92,19 +92,20 @@ export default function AboutSection({ onOpenModal }) {
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               whileInView={{ opacity: 1, scale: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3, duration: 0.8 }}
-              className="hidden sm:block absolute -bottom-10 -right-6 lg:-right-10 w-60 sm:w-72 aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border-4 border-white z-20"
+              whileHover={{ scale: 1.05, y: -4 }}
+              viewport={{ once: false, amount: 0.2 }}
+              transition={{ delay: 0.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute -bottom-6 -right-2 sm:-bottom-8 sm:-right-6 lg:-right-8 w-48 sm:w-64 lg:w-72 aspect-[4/3] rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.35)] border-3 sm:border-4 border-white z-20 cursor-pointer"
             >
               <Image
                 src="/images/gallery-pool.jpg"
-                alt="Private Swimming Pool at Red Roots Villa"
+                alt="Private Swimming Pool and Sun Terrace at Red Roots Villa"
                 fill
-                sizes="288px"
+                sizes="(max-width: 640px) 192px, 288px"
                 className="object-cover transition-transform duration-700 hover:scale-108"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4">
-                <span className="text-[11px] font-bold text-white uppercase tracking-wider">
+              <div className="absolute inset-0 bg-gradient-to-t from-[#070c1b]/70 via-transparent to-transparent flex items-end p-3.5 sm:p-4">
+                <span className="text-[10px] sm:text-[11px] font-bold text-white uppercase tracking-wider drop-shadow-md">
                   Private Pool & Terrace
                 </span>
               </div>
@@ -115,7 +116,7 @@ export default function AboutSection({ onOpenModal }) {
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: false, amount: 0.2, margin: '-20px' }}
             transition={{ duration: 0.8 }}
             className="lg:col-span-6 flex flex-col justify-center"
           >
@@ -166,30 +167,38 @@ export default function AboutSection({ onOpenModal }) {
           </motion.div>
         </div>
 
-        {/* 4 Luxury Interactive 3D Stats Cards */}
+        {/* 4 Luxury Interactive 3D Stats Cards with Staggered Scroll Reveal */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((item, idx) => {
             const Icon = item.icon;
             return (
-              <Tilt3DCard
+              <motion.div
                 key={idx}
-                scaleOnHover={1.04}
-                maxRotation={12}
-                className="bg-white p-8 rounded-3xl border border-[#e6ded1] shadow-md hover:shadow-2xl hover:border-[#c5a059]/50 transition-all text-center flex flex-col items-center group cursor-pointer"
+                initial={{ opacity: 0, y: 35 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.15, margin: '-20px' }}
+                transition={{ duration: 0.6, delay: idx * 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="h-full"
               >
-                <div className="w-14 h-14 rounded-2xl bg-[#c5a059]/10 text-[#9e7d3b] flex items-center justify-center mb-5 group-hover:bg-[#c5a059] group-hover:text-white transition-all shadow-sm">
-                  <Icon className="w-6 h-6" />
-                </div>
-                <span className="font-serif italic text-4xl sm:text-5xl font-bold text-[#0b132b]">
-                  {item.number}
-                </span>
-                <span className="text-xs sm:text-sm font-bold uppercase tracking-[0.16em] text-[#0b132b] mt-3 mb-1">
-                  {item.label}
-                </span>
-                <span className="text-[11px] text-[#718096] font-light">
-                  {item.sub}
-                </span>
-              </Tilt3DCard>
+                <Tilt3DCard
+                  scaleOnHover={1.04}
+                  maxRotation={12}
+                  className="bg-white p-8 rounded-3xl border border-[#e6ded1] shadow-md hover:shadow-2xl hover:border-[#c5a059]/50 transition-all text-center flex flex-col items-center group cursor-pointer h-full"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-[#c5a059]/10 text-[#9e7d3b] flex items-center justify-center mb-5 group-hover:bg-[#c5a059] group-hover:text-white transition-all shadow-sm">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <span className="font-serif italic text-4xl sm:text-5xl font-bold text-[#0b132b]">
+                    {item.number}
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold uppercase tracking-[0.16em] text-[#0b132b] mt-3 mb-1">
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] text-[#718096] font-light">
+                    {item.sub}
+                  </span>
+                </Tilt3DCard>
+              </motion.div>
             );
           })}
         </div>

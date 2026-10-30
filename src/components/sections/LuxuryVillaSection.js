@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Quote, Sparkles, MessageCircle } from 'lucide-react';
+import MagneticButton from '@/components/ui/MagneticButton';
 
 export default function LuxuryVillaSection({ onOpenModal }) {
   return (
@@ -13,7 +14,7 @@ export default function LuxuryVillaSection({ onOpenModal }) {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={{ once: false, amount: 0.2, margin: '-20px' }}
           transition={{ duration: 0.8 }}
           className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center bg-white/70 backdrop-blur-md p-8 sm:p-12 lg:p-14 rounded-3xl border border-[#df9700]/25 shadow-xl"
         >
@@ -33,15 +34,14 @@ export default function LuxuryVillaSection({ onOpenModal }) {
             <div className="w-16 h-[3px] bg-gradient-to-r from-[#df9700] to-[#f5b027] mt-3 mb-8 rounded-full" />
 
             <div className="flex items-center gap-3.5 flex-wrap">
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+              <MagneticButton
                 onClick={onOpenModal}
-                className="bg-gradient-to-r from-[#df9700] via-[#f5b027] to-[#df9700] hover:shadow-lg hover:shadow-[#df9700]/30 text-zinc-950 font-extrabold text-sm md:text-base px-8 py-3.5 rounded-xl shadow-md transition-all duration-200 cursor-pointer uppercase tracking-wider"
+                className="px-8 py-3.5 text-sm md:text-base font-extrabold shadow-lg"
               >
-                Book Now
-              </motion.button>
+                <span>Book Now</span>
+              </MagneticButton>
 
+              {/* WhatsApp Caretaker Button (Temporarily disabled)
               <a
                 href="https://wa.me/919363432220?text=Hi%20Red%20Roots%20Villa,%20I%20would%20like%20to%20inquire%20about%20booking%20the%20villa."
                 target="_blank"
@@ -51,6 +51,7 @@ export default function LuxuryVillaSection({ onOpenModal }) {
                 <MessageCircle className="w-4 h-4 text-emerald-600" />
                 <span>WhatsApp Caretaker</span>
               </a>
+              */}
             </div>
           </div>
 

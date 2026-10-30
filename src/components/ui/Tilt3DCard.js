@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { motion, useSpring, useMotionValue } from 'framer-motion';
+import { useRef, useState, useEffect } from 'react';
+import { motion, useSpring, useMotionValue, useMotionTemplate, useReducedMotion } from 'framer-motion';
 
 export default function Tilt3DCard({
   children,
@@ -13,18 +13,21 @@ export default function Tilt3DCard({
 }) {
   const cardRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const rotateX = useMotionValue(0);
   const rotateY = useMotionValue(0);
   const glareX = useMotionValue(50);
   const glareY = useMotionValue(50);
 
-  const springConfig = { damping: 20, stiffness: 200, mass: 0.1 };
+  const springConfig = { damping: 20, stiffness: 220, mass: 0.1 };
   const smoothRotateX = useSpring(rotateX, springConfig);
   const smoothRotateY = useSpring(rotateY, springConfig);
 
+  const glareBackground = useMotionTemplate`radial-gradient(circle 350px at ${glareX}% ${glareY}%, rgba(255,255,255,0.45), transparent 80%)`;
+
   const handleMouseMove = (e) => {
-    if (!cardRef.current) return;
+    if (prefersReducedMotion || !cardRef.current) return;
     const { clientX, clientY } = e;
     const { left, top, width, height } = cardRef.current.getBoundingClientRect();
 
@@ -38,40 +41,52 @@ export default function Tilt3DCard({
     glareY.set(((clientY - top) / height) * 100);
   };
 
-  const handleMouseLeave = () => {
+  const resetCard = () => {
     rotateX.set(0);
     rotateY.set(0);
     setIsHovered(false);
   };
 
-  return (
-    <motion.div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        transformStyle: 'preserve-3d',
-        rotateX: smoothRotateX,
-        rotateY: smoothRotateY,
-      }}
-      animate={{ scale: isHovered ? scaleOnHover : 1 }}
-      transition={{ duration: 0.3 }}
-      className={`relative perspective-1000 ${className}`}
-      {...props}
-    >
-      {/* Glare Sheen Layer */}
-      {glare && (
-        <motion.div
-          className="absolute inset-0 z-30 pointer-events-none rounded-[inherit] overflow-hidden transition-opacity duration-300"
-          style={{
-            opacity: isHovered ? 0.35 : 0,
-            background: `radial-gradient(circle 320px at ${glareX.get()}% ${glareY.get()}%, rgba(255,255,255,0.7), transparent 80%)`,
-          }}
-        />
-      )}
+  useEffect(() => {
+    return () => {
+      resetCard();
+    };
+  }, []);
 
-      {children}
-    </motion.div>
+  return (
+    <div style={{ perspective: 1200 }} className={`relative w-full ${className}`}>
+      <motion.div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={resetCard}
+        onPointerLeave={resetCard}
+        onPointerCancel={resetCard}
+        onTouchEnd={resetCard}
+        onBlur={resetCard}
+        style={{
+          transformStyle: 'preserve-3d',
+          rotateX: prefersReducedMotion ? 0 : smoothRotateX,
+          rotateY: prefersReducedMotion ? 0 : smoothRotateY,
+        }}
+        whileHover={prefersReducedMotion ? {} : { scale: scaleOnHover }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+        className="relative w-full h-full rounded-[inherit] overflow-hidden"
+        {...props}
+      >
+        {/* Dynamic Glare Sheen Layer */}
+        {glare && !prefersReducedMotion && (
+          <motion.div
+            className="absolute inset-0 z-30 pointer-events-none rounded-[inherit] overflow-hidden transition-opacity duration-300"
+            style={{
+              opacity: isHovered ? 0.4 : 0,
+              background: glareBackground,
+            }}
+          />
+        )}
+
+        {children}
+      </motion.div>
+    </div>
   );
 }

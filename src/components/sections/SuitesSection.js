@@ -42,7 +42,13 @@ export default function SuitesSection({ onOpenModal }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 relative z-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
+        <motion.div
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.2 }}
+          transition={{ duration: 0.6 }}
+          className="text-center max-w-3xl mx-auto mb-16 sm:mb-24"
+        >
           <div className="inline-flex items-center gap-2 mb-3">
             <Sparkles className="w-3.5 h-3.5 text-[#e5c384]" />
             <span className="text-xs uppercase tracking-[0.28em] text-[#e5c384] font-bold">
@@ -57,7 +63,7 @@ export default function SuitesSection({ onOpenModal }) {
             Each bedroom at Red Roots Villa is fully air-conditioned, equipped with high-speed WiFi,
             fresh linens, and a tranquil atmosphere.
           </p>
-        </div>
+        </motion.div>
 
         {/* 3-Column 3D Tilt Suite Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10">
@@ -66,7 +72,7 @@ export default function SuitesSection({ onOpenModal }) {
               key={idx}
               initial={{ opacity: 0, y: 35 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={{ once: false, amount: 0.15 }}
               transition={{ duration: 0.6, delay: idx * 0.15 }}
             >
               <Tilt3DCard
@@ -119,7 +125,9 @@ export default function SuitesSection({ onOpenModal }) {
                   </div>
 
                   {/* Card Action */}
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => {
                       const roomTypeMap = {
                         'The Master Suite': 'The Master King Suite',
@@ -134,7 +142,7 @@ export default function SuitesSection({ onOpenModal }) {
                   >
                     <span>Reserve Suite</span>
                     <ArrowUpRight className="w-4 h-4" />
-                  </button>
+                  </motion.button>
                 </div>
               </Tilt3DCard>
             </motion.div>

@@ -86,6 +86,7 @@ export default function Footer() {
                 <span>redrootsvilla@gmail.com</span>
               </a>
 
+              {/* WhatsApp Caretaker Chat (Temporarily disabled)
               <a
                 href="https://wa.me/919363432220?text=Hello,%20I%20would%20like%20to%20know%20availability%20for%20Red%20Roots%20Villa."
                 target="_blank"
@@ -95,6 +96,7 @@ export default function Footer() {
                 <MessageCircle className="w-4 h-4" />
                 <span>Chat with Caretaker on WhatsApp</span>
               </a>
+              */}
             </div>
 
             {/* Navigation links matching reference */}

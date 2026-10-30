@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${montserrat.variable} ${playfair.variable} scroll-smooth antialiased`}
+      className={`${montserrat.variable} ${playfair.variable} scroll-smooth scroll-pt-24 antialiased`}
     >
       <body className="font-sans min-h-screen bg-white text-zinc-800 flex flex-col selection:bg-[#df9700] selection:text-white">
         {children}

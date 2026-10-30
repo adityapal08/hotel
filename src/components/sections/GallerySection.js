@@ -83,7 +83,7 @@ export default function GallerySection() {
         <motion.div
           initial={{ opacity: 0, y: 25 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: false, amount: 0.2 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-10 sm:mb-14"
         >
@@ -100,21 +100,30 @@ export default function GallerySection() {
           <div className="w-16 h-[3px] bg-gradient-to-r from-[#df9700] to-[#f5b027] mx-auto mt-3 rounded-full" />
         </motion.div>
 
-        {/* Category Filter Pills */}
+        {/* Category Filter Pills with Smooth Sliding Capsule */}
         <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-10 sm:mb-12">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             return (
-              <button
+              <motion.button
                 key={cat.id}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`relative px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase transition-all duration-200 cursor-pointer ${isSelected
-                    ? 'bg-[#df9700] text-zinc-950 shadow-md shadow-[#df9700]/25'
-                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-[#df9700]/50 hover:text-zinc-900'
-                  }`}
+                className={`relative px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase transition-colors duration-200 cursor-pointer select-none ${
+                  isSelected
+                    ? 'text-[#070c1b] font-extrabold'
+                    : 'text-zinc-700 hover:text-zinc-950 border border-zinc-200 bg-white hover:border-[#df9700]/50'
+                }`}
               >
-                {cat.label}
-              </button>
+                {isSelected && (
+                  <motion.div
+                    layoutId="galleryFilterActive"
+                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                    className="absolute inset-0 bg-gradient-to-r from-[#df9700] via-[#f5b027] to-[#df9700] rounded-full shadow-md shadow-[#df9700]/30 -z-0"
+                  />
+                )}
+                <span className="relative z-10">{cat.label}</span>
+              </motion.button>
             );
           })}
         </div>

@@ -76,7 +76,7 @@ export default function HighlightsSection() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: false, amount: 0.2 }}
             transition={{ duration: 0.6 }}
             className="inline-flex items-center gap-2 mb-3"
           >
@@ -90,7 +90,7 @@ export default function HighlightsSection() {
           <motion.h2
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: false, amount: 0.2 }}
             transition={{ duration: 0.6, delay: 0.1 }}
             className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0b132b] uppercase"
           >
@@ -111,7 +111,7 @@ export default function HighlightsSection() {
                 key={idx}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                viewport={{ once: false, amount: 0.15 }}
                 transition={{ duration: 0.6, delay: idx * 0.1 }}
               >
                 <Tilt3DCard
