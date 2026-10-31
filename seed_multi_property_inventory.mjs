@@ -65,13 +65,57 @@ function isSimulatedPeakDate(dateStr, dayOfWeek) {
   return false;
 }
 
+// Designated zero-availability dates and room types for Homestay 2 and Homestay 3
+function isPropertyZeroAvailability(propId, roomName, totalRooms, dateStr) {
+  // Homestay 2
+  if (propId === 'homestay-2') {
+    // Completely zero availability across all room types on 1-2 dates
+    if (dateStr === '2026-11-10' || dateStr === '2026-12-18') {
+      return totalRooms;
+    }
+    // Specific room types fully booked on selected dates
+    if (dateStr === '2026-11-22' && (roomName === 'Deluxe Pool-View Suite' || roomName === 'Executive Family Suite')) {
+      return totalRooms;
+    }
+    if (dateStr === '2026-12-08' && roomName === 'Cozy Studio Apartment') {
+      return totalRooms;
+    }
+  }
+
+  // Homestay 3
+  if (propId === 'homestay-3') {
+    // Completely zero availability across all room types on 1-2 dates
+    if (dateStr === '2026-11-12' || dateStr === '2026-12-12') {
+      return totalRooms;
+    }
+    // Specific room types fully booked on selected dates
+    if (dateStr === '2026-11-24' && (roomName === 'Heritage King Suite' || roomName === 'Grand Family Suite')) {
+      return totalRooms;
+    }
+    if (dateStr === '2026-12-16' && roomName === 'Terrace Garden Room') {
+      return totalRooms;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Calculates realistic simulated booked rooms for a given date and room type
  */
 function calculateSimulatedOccupancy(propertyId, roomName, totalRooms, dateStr, dObj) {
-  // Red Roots Villa stays at 0 default booked unless real bookings exist
+  // Red Roots Villa peak sold-out dates (Nov 10 test date, Diwali Nov 14-15, Christmas Dec 24-25, private booking Dec 5-6)
   if (propertyId === 'red-roots-villa') {
+    if (['2026-11-10', '2026-11-14', '2026-11-15', '2026-12-05', '2026-12-06', '2026-12-24', '2026-12-25', '2026-12-31'].includes(dateStr)) {
+      return totalRooms;
+    }
     return 0;
+  }
+
+  // Check specific zero-availability dates and room types for Homestay 2 and Homestay 3
+  const zeroCheck = isPropertyZeroAvailability(propertyId, roomName, totalRooms, dateStr);
+  if (zeroCheck !== null) {
+    return zeroCheck;
   }
 
   const dayOfWeek = dObj.getUTCDay(); // 0 = Sun, 5 = Fri, 6 = Sat
