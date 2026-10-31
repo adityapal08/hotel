@@ -109,11 +109,10 @@ export default function GallerySection() {
                 key={cat.id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`relative px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase transition-colors duration-200 cursor-pointer select-none ${
-                  isSelected
+                className={`relative px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase transition-colors duration-200 cursor-pointer select-none ${isSelected
                     ? 'text-[#070c1b] font-extrabold'
                     : 'text-zinc-700 hover:text-zinc-950 border border-zinc-200 bg-white hover:border-[#df9700]/50'
-                }`}
+                  }`}
               >
                 {isSelected && (
                   <motion.div

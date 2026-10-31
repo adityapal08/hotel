@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import {
-  ROOM_CONFIG,
+  PROPERTIES_CONFIG,
   getAvailabilityForRange,
   reserveBooking,
   cancelBooking,
   getBookingByReference,
   getAllBookings,
+  getProperty,
 } from '@/lib/db';
 
 function isValidDate(dateStr) {
@@ -16,12 +17,13 @@ function isValidDate(dateStr) {
 
 /**
  * GET /api/bookings
- * Check availability, retrieve booking by reference, or list bookings.
+ * Check availability, retrieve booking by reference, or list bookings by property.
  */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const ref = searchParams.get('ref');
+    const propertyId = searchParams.get('propertyId') || searchParams.get('property');
 
     // 1. Retrieve booking by reference ID
     if (ref) {
@@ -68,11 +70,13 @@ export async function GET(request) {
         );
       }
 
-      const results = getAvailabilityForRange(checkIn, checkOut, roomType, rooms);
+      const activePropId = propertyId || 'red-roots-villa';
+      const results = getAvailabilityForRange(checkIn, checkOut, roomType, rooms, activePropId);
       const selectedResult = results[0] || null;
 
       return NextResponse.json({
         success: true,
+        propertyId: activePropId,
         available: selectedResult ? selectedResult.isAvailable : false,
         status: selectedResult ? selectedResult.status : 'sold_out',
         minAvailableRooms: selectedResult ? selectedResult.minAvailableRooms : 0,
@@ -85,11 +89,13 @@ export async function GET(request) {
       });
     }
 
-    // 3. List recent bookings (admin/verification)
-    const bookings = getAllBookings(25);
+    // 3. List bookings (admin/verification), optionally filtered by property
+    const bookings = getAllBookings(100, propertyId);
     return NextResponse.json({
       success: true,
-      message: 'Red Roots Villa Booking API is active.',
+      message: 'Homestay Booking API is active.',
+      propertyId: propertyId || 'all',
+      totalCount: bookings.length,
       bookings,
     });
   } catch (error) {
@@ -103,14 +109,15 @@ export async function GET(request) {
 
 /**
  * POST /api/bookings
- * Validates guest data, rechecks inventory atomically, decrements inventory,
- * and creates confirmed booking in SQLite.
+ * Validates guest data, rechecks inventory atomically for the selected property,
+ * decrements inventory, and creates confirmed booking in SQLite.
  */
 export async function POST(request) {
   try {
     const body = await request.json();
 
     const {
+      propertyId = 'red-roots-villa',
       guestName,
       email,
       phone,
@@ -119,11 +126,22 @@ export async function POST(request) {
       adults = 1,
       children = 0,
       rooms = 1,
-      roomType = 'Entire 3BHK Private Pool Villa',
+      roomType,
       specialRequests = '',
+      isNegotiated = false,
+      negotiatedTotalPrice = null,
     } = body;
 
-    // 1. Required Field Validations
+    // 1. Validate Property
+    const prop = PROPERTIES_CONFIG[propertyId];
+    if (!prop) {
+      return NextResponse.json(
+        { success: false, error: `Invalid homestay property selected: "${propertyId}".` },
+        { status: 400 }
+      );
+    }
+
+    // 2. Required Field Validations
     if (!guestName || typeof guestName !== 'string' || guestName.trim().length < 2) {
       return NextResponse.json(
         { success: false, error: 'Please provide a valid guest name (minimum 2 characters).' },
@@ -147,7 +165,7 @@ export async function POST(request) {
       );
     }
 
-    // 2. Date Validations
+    // 3. Date Validations
     if (!checkIn || !isValidDate(checkIn)) {
       return NextResponse.json(
         { success: false, error: 'Please select a valid check-in date.' },
@@ -181,11 +199,15 @@ export async function POST(request) {
       );
     }
 
-    // 3. Room & Guests Validations
-    const selectedRoomConfig = ROOM_CONFIG[roomType];
+    // 4. Room & Guests Validations for the selected Property
+    const selectedRoomType = roomType || Object.keys(prop.rooms)[0];
+    const selectedRoomConfig = prop.rooms[selectedRoomType];
     if (!selectedRoomConfig) {
       return NextResponse.json(
-        { success: false, error: `Accommodation type "${roomType}" is not recognized.` },
+        {
+          success: false,
+          error: `Room type "${selectedRoomType}" does not belong to ${prop.name}. Available rooms: ${Object.keys(prop.rooms).join(', ')}`,
+        },
         { status: 400 }
       );
     }
@@ -215,9 +237,9 @@ export async function POST(request) {
       );
     }
 
-    // 4. Atomic SQLite Reservation & Inventory Decrement
-    // reserveBooking handles transaction lock and prevents concurrent overselling
+    // 5. Atomic SQLite Reservation & Inventory Decrement for Selected Property
     const { booking, updatedInventory } = reserveBooking({
+      propertyId: prop.id,
       guestName,
       email,
       phone,
@@ -226,14 +248,16 @@ export async function POST(request) {
       adults: parsedAdults,
       children: parsedChildren,
       rooms: parsedRooms,
-      roomType,
+      roomType: selectedRoomType,
       specialRequests,
+      isNegotiated: Boolean(isNegotiated),
+      negotiatedTotalPrice: negotiatedTotalPrice != null ? Number(negotiatedTotalPrice) : null,
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Your reservation has been confirmed and inventory updated.',
+        message: `Your reservation at ${prop.name} has been confirmed.`,
         booking,
         updatedInventory,
       },
@@ -241,26 +265,31 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error('Error processing booking in POST /api/bookings:', error);
-    // 409 Conflict if sold out or insufficient inventory
     const isConflict =
       error.message &&
       (error.message.includes('Sold Out') ||
         error.message.includes('available') ||
         error.message.includes('conflict'));
+    const isBadRequest =
+      error.message &&
+      (error.message.includes('authorized minimum rate') ||
+        error.message.includes('below our authorized') ||
+        error.message.includes('below our minimum') ||
+        error.message.includes('allowable minimum rate'));
 
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'An unexpected error occurred while saving your booking.',
       },
-      { status: isConflict ? 409 : 500 }
+      { status: isConflict ? 409 : isBadRequest ? 400 : 500 }
     );
   }
 }
 
 /**
  * PATCH /api/bookings
- * Allows booking cancellation and atomic inventory restoration.
+ * Allows booking cancellation and atomic inventory restoration to the correct property.
  */
 export async function PATCH(request) {
   try {
@@ -278,7 +307,7 @@ export async function PATCH(request) {
       const { booking, restoredInventory } = cancelBooking(reference.trim().toUpperCase());
       return NextResponse.json({
         success: true,
-        message: `Booking ${reference} has been cancelled and room inventory restored.`,
+        message: `Booking ${reference} for ${booking.property_name || 'the homestay'} has been cancelled and room inventory restored.`,
         booking,
         restoredInventory,
       });

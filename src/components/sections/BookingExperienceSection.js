@@ -21,55 +21,18 @@ import {
   ChevronUp,
   Layers,
   Flame,
+  Building2,
 } from 'lucide-react';
 import MagneticButton from '@/components/ui/MagneticButton';
 import Tilt3DCard from '@/components/ui/Tilt3DCard';
+import CompactCalendar from '@/components/ui/CompactCalendar';
 import { checkAvailabilityApi } from '@/services/bookingService';
+import { PROPERTY_DATA } from '@/components/ui/BookNowModal';
 
-export const ROOM_OPTIONS = [
-  {
-    name: 'Entire 3BHK Private Pool Villa',
-    rate: 15000,
-    tag: 'Exclusive Villa',
-    maxGuests: 8,
-    maxRooms: 2,
-    desc: '3 air-conditioned master bedrooms, private pool, lawn & kitchen',
-  },
-  {
-    name: 'The Master King Suite',
-    rate: 6500,
-    tag: 'Ground Floor Master',
-    maxGuests: 3,
-    maxRooms: 4,
-    desc: 'King teak bed, olive quilt, en-suite bathroom & work desk',
-  },
-  {
-    name: 'The Garden Deluxe Suite',
-    rate: 5500,
-    tag: 'Upper Garden View',
-    maxGuests: 2,
-    maxRooms: 6,
-    desc: 'Emerald velvet drapery, serene river view artwork & balcony',
-  },
-  {
-    name: 'Deluxe Room',
-    rate: 4500,
-    tag: 'Dummy Inventory Test',
-    maxGuests: 3,
-    maxRooms: 10,
-    desc: '10 total rooms seeded in SQLite for dynamic inventory testing',
-  },
-  {
-    name: 'Premium Room',
-    rate: 5800,
-    tag: 'Dummy Inventory Test',
-    maxGuests: 4,
-    maxRooms: 5,
-    desc: '5 total rooms seeded in SQLite with live booked & available counts',
-  },
-];
+export const ROOM_OPTIONS = PROPERTY_DATA['red-roots-villa'].rooms;
 
-export default function BookingExperienceSection({ onOpenModal }) {
+export default function BookingExperienceSection({ onOpenModal, refreshKey = 0 }) {
+  const [propertyId, setPropertyId] = useState('red-roots-villa');
   const [todayStr, setTodayStr] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -84,6 +47,9 @@ export default function BookingExperienceSection({ onOpenModal }) {
   const [allAvailability, setAllAvailability] = useState({});
   const [currentAvailability, setCurrentAvailability] = useState(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
+
+  const currentProperty = PROPERTY_DATA[propertyId] || PROPERTY_DATA['red-roots-villa'];
+  const currentRooms = currentProperty.rooms || [];
 
   // Initialize initial test dates (starts tomorrow or Nov 1)
   useEffect(() => {
@@ -103,16 +69,16 @@ export default function BookingExperienceSection({ onOpenModal }) {
     }
   }, []);
 
-  // Fetch availability from SQLite API whenever checkIn, checkOut, or rooms change
+  // Fetch availability from SQLite API whenever checkIn, checkOut, rooms, or property changes
   const fetchAvailability = useCallback(
-    async (inDate, outDate, reqRooms) => {
+    async (inDate, outDate, reqRooms, propId = propertyId) => {
       if (!inDate || !outDate || inDate >= outDate) return;
       setIsSearching(true);
       setDateError('');
 
       try {
-        // Query all rooms so we have badges for each option
-        const response = await checkAvailabilityApi(inDate, outDate, '', reqRooms);
+        // Query all rooms for selected property
+        const response = await checkAvailabilityApi(inDate, outDate, '', reqRooms, propId);
         if (response.success && response.results) {
           const map = {};
           response.results.forEach((r) => {
@@ -128,15 +94,26 @@ export default function BookingExperienceSection({ onOpenModal }) {
         setIsSearching(false);
       }
     },
-    [roomType]
+    [roomType, propertyId]
   );
 
-  // Trigger availability check when dates or room count changes
+  const handlePropertyChange = (newPropId) => {
+    setPropertyId(newPropId);
+    const targetProp = PROPERTY_DATA[newPropId] || PROPERTY_DATA['red-roots-villa'];
+    const firstRoom = targetProp.rooms[0]?.name || '';
+    setRoomType(firstRoom);
+    setRooms(1);
+    setAllAvailability({});
+    setCurrentAvailability(null);
+    fetchAvailability(checkIn, checkOut, 1, newPropId);
+  };
+
+  // Trigger availability check when dates, room count, propertyId, or refreshKey changes
   useEffect(() => {
     if (checkIn && checkOut && checkIn < checkOut) {
-      fetchAvailability(checkIn, checkOut, rooms);
+      fetchAvailability(checkIn, checkOut, rooms, propertyId);
     }
-  }, [checkIn, checkOut, rooms, fetchAvailability]);
+  }, [checkIn, checkOut, rooms, propertyId, refreshKey, fetchAvailability]);
 
   // Keep currentAvailability in sync when active roomType changes
   useEffect(() => {
@@ -154,8 +131,8 @@ export default function BookingExperienceSection({ onOpenModal }) {
       ? Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)))
       : 0;
 
-  const selectedRoom = ROOM_OPTIONS.find((r) => r.name === roomType) || ROOM_OPTIONS[0];
-  const pricePerNight = currentAvailability?.pricePerNight || selectedRoom.rate;
+  const selectedRoom = currentRooms.find((r) => r.name === roomType) || currentRooms[0] || {};
+  const pricePerNight = currentAvailability?.pricePerNight || selectedRoom.rate || 4500;
   const estimatedTotal = calculatedNights * pricePerNight * rooms;
 
   const handleDateChange = (type, val) => {
@@ -200,6 +177,7 @@ export default function BookingExperienceSection({ onOpenModal }) {
 
     if (onOpenModal) {
       onOpenModal({
+        propertyId,
         checkIn,
         checkOut,
         roomType,
@@ -215,14 +193,21 @@ export default function BookingExperienceSection({ onOpenModal }) {
   // Status badge renderer
   const renderStatusBadge = (avail) => {
     if (!avail) {
+      if (isSearching) {
+        return (
+          <span className="text-[10px] text-gray-400 flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" /> Verifying...
+          </span>
+        );
+      }
       return (
-        <span className="text-[10px] text-gray-400 flex items-center gap-1">
-          <Loader2 className="w-3 h-3 animate-spin" /> Checking...
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+          <Check className="w-3 h-3" /> Available
         </span>
       );
     }
 
-    if (avail.status === 'sold_out') {
+    if (avail.status === 'sold_out' || avail.minAvailableRooms === 0) {
       return (
         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-950/80 border border-rose-600/40 px-2 py-0.5 rounded-md">
           <XCircle className="w-3 h-3" /> Sold Out
@@ -238,7 +223,7 @@ export default function BookingExperienceSection({ onOpenModal }) {
       );
     }
 
-    if (avail.status === 'limited') {
+    if (avail.status === 'limited' || avail.minAvailableRooms <= 3) {
       return (
         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-950/60 border border-amber-500/30 px-2 py-0.5 rounded-md">
           <Flame className="w-3 h-3 text-amber-400" /> Only {avail.minAvailableRooms} Left!
@@ -329,19 +314,64 @@ export default function BookingExperienceSection({ onOpenModal }) {
             className="lg:col-span-7 bg-[#0f172a] rounded-[2.5rem] p-6 sm:p-10 border border-[#c5a059]/30 shadow-2xl flex flex-col justify-between"
           >
             <div>
+              {/* Homestay Property Switcher */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-[0.16em] text-gray-300 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-[#e5c384]" />
+                    Select Homestay Property
+                  </label>
+                  <span className="text-[11px] text-[#e5c384] font-medium">
+                    3 Properties Available
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {Object.values(PROPERTY_DATA).map((prop) => {
+                    const isSelected = propertyId === prop.id;
+                    return (
+                      <button
+                        key={prop.id}
+                        type="button"
+                        onClick={() => handlePropertyChange(prop.id)}
+                        className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? 'bg-[#c5a059]/20 border-[#c5a059] text-white shadow-lg ring-1 ring-[#c5a059]'
+                            : 'bg-[#070c1b] border-white/10 text-gray-400 hover:border-white/30'
+                        }`}
+                      >
+                        <div>
+                          <span className="font-serif text-xs font-bold text-white block truncate">
+                            {prop.name}
+                          </span>
+                          <span className="text-[10px] text-gray-400 block truncate mt-0.5">
+                            {prop.location}
+                          </span>
+                        </div>
+                        {prop.isPlaceholder && (
+                          <span className="mt-2 text-[9px] text-amber-300/80 uppercase font-semibold">
+                            Preview
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Accommodation Selector */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold uppercase tracking-[0.16em] text-gray-300">
-                    Select Accommodation Type
+                    Select Accommodation ({currentProperty.name})
                   </label>
                   <span className="text-[11px] text-[#e5c384] font-medium">
-                    {ROOM_OPTIONS.length} Options Available
+                    {currentRooms.length} Options Available
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {ROOM_OPTIONS.map((opt) => {
+                  {currentRooms.map((opt) => {
                     const isSelected = roomType === opt.name;
                     const avail = allAvailability[opt.name];
 
@@ -362,7 +392,7 @@ export default function BookingExperienceSection({ onOpenModal }) {
                         <div>
                           <div className="flex items-center justify-between gap-1 mb-1">
                             <span className="text-[9px] font-bold uppercase tracking-wider text-[#e5c384] truncate">
-                              {opt.tag}
+                              {opt.name}
                             </span>
                             {renderStatusBadge(avail)}
                           </div>
@@ -386,39 +416,80 @@ export default function BookingExperienceSection({ onOpenModal }) {
                 </div>
               </div>
 
-              {/* Date Selection */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-[0.16em] text-gray-300 mb-2">
-                    Check-in Date
+              {/* Live Calendar & Date Range Selection */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="text-xs font-bold uppercase tracking-[0.16em] text-gray-300 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#e5c384]" />
+                    Select Dates ({currentProperty.name})
                   </label>
-                  <div className="relative">
-                    <Calendar className="w-4 h-4 text-[#e5c384] absolute left-4 top-3.5" />
-                    <input
-                      type="date"
-                      min={todayStr || undefined}
-                      value={checkIn}
-                      onChange={(e) => handleDateChange('checkIn', e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-[#070c1b] border border-white/15 rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059]"
-                    />
-                  </div>
+                  <span className="text-[11px] text-[#e5c384] font-medium">
+                    {selectedRoom.totalInventory || 10} Rooms / Night Capacity
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-[0.16em] text-gray-300 mb-2">
-                    Check-out Date
-                  </label>
-                  <div className="relative">
-                    <Calendar className="w-4 h-4 text-[#e5c384] absolute left-4 top-3.5" />
-                    <input
-                      type="date"
-                      min={checkIn || todayStr || undefined}
-                      value={checkOut}
-                      onChange={(e) => handleDateChange('checkOut', e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-[#070c1b] border border-white/15 rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059]"
-                    />
+                {/* Compact Modern Calendar */}
+                <CompactCalendar
+                  checkIn={checkIn}
+                  checkOut={checkOut}
+                  roomType={roomType}
+                  propertyId={propertyId}
+                  refreshKey={refreshKey}
+                  theme="dark"
+                  onSelectRange={(inD, outD) => {
+                    setDateError('');
+                    if (inD) setCheckIn(inD);
+                    if (outD) {
+                      setCheckOut(outD);
+                      fetchAvailability(inD, outD, rooms, propertyId);
+                    }
+                  }}
+                  className="mb-3.5"
+                />
+
+                {/* Synchronized Date Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400 mb-1.5">
+                      Check-in Date
+                    </label>
+                    <div className="relative">
+                      <Calendar className="w-4 h-4 text-[#e5c384] absolute left-3.5 top-3" />
+                      <input
+                        type="date"
+                        min={todayStr || undefined}
+                        value={checkIn}
+                        onChange={(e) => handleDateChange('checkIn', e.target.value)}
+                        className="w-full pl-10 pr-3 py-2.5 bg-[#070c1b] border border-white/15 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#c5a059]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400 mb-1.5">
+                      Check-out Date
+                    </label>
+                    <div className="relative">
+                      <Calendar className="w-4 h-4 text-[#e5c384] absolute left-3.5 top-3" />
+                      <input
+                        type="date"
+                        min={checkIn || todayStr || undefined}
+                        value={checkOut}
+                        onChange={(e) => handleDateChange('checkOut', e.target.value)}
+                        className="w-full pl-10 pr-3 py-2.5 bg-[#070c1b] border border-white/15 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#c5a059]"
+                      />
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              {/* No Online Payment Required Assurance Badge */}
+              <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center gap-2 mb-4">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>
+                  <strong>No Online Payment Required:</strong> Book your rooms directly with instant
+                  confirmation. Zero payment details or card needed today — pay at check-in.
+                </span>
               </div>
 
               {dateError && (
@@ -473,7 +544,7 @@ export default function BookingExperienceSection({ onOpenModal }) {
                     onChange={(e) => setRooms(parseInt(e.target.value, 10))}
                     className="w-full px-3 py-3 bg-[#070c1b] border border-white/15 rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:border-[#c5a059]"
                   >
-                    {Array.from({ length: selectedRoom.maxRooms || 5 }, (_, i) => i + 1).map((n) => (
+                    {Array.from({ length: selectedRoom.maxRooms || 10 }, (_, i) => i + 1).map((n) => (
                       <option key={n} value={n}>
                         {n} {n === 1 ? 'Room' : 'Rooms'}
                       </option>
@@ -489,10 +560,9 @@ export default function BookingExperienceSection({ onOpenModal }) {
                     <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
                       SQLite Live Status:
                     </span>
-                    {isSearching ? (
+                    {isSearching && !currentAvailability ? (
                       <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c5a059]" /> Checking
-                        database...
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c5a059]" /> Checking database...
                       </span>
                     ) : (
                       renderStatusBadge(currentAvailability)
@@ -587,9 +657,15 @@ export default function BookingExperienceSection({ onOpenModal }) {
 
             {/* Action Section */}
             <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <Clock className="w-4 h-4 text-[#e5c384]" />
-                <span>Instant confirmation • Atomic SQLite lock</span>
+              <div className="flex flex-col gap-1 text-xs text-gray-400">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#e5c384]" />
+                  <span>Instant confirmation • Atomic SQLite lock</span>
+                </div>
+                <div className="flex items-center gap-2 text-emerald-400 font-medium text-[11px]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>No payment required now • Pay upon arrival</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
@@ -605,16 +681,15 @@ export default function BookingExperienceSection({ onOpenModal }) {
                 <MagneticButton
                   onClick={handleProceedBooking}
                   disabled={currentAvailability && !currentAvailability.isAvailable}
-                  className={`px-8 py-4 text-xs ${
-                    currentAvailability && !currentAvailability.isAvailable
+                  className={`px-8 py-4 text-xs ${currentAvailability && !currentAvailability.isAvailable
                       ? 'opacity-50 cursor-not-allowed'
                       : ''
-                  }`}
+                    }`}
                 >
                   <span>
                     {currentAvailability && !currentAvailability.isAvailable
                       ? 'Sold Out For Dates'
-                      : 'Continue Reservation'}
+                      : 'Reserve (No Payment Needed)'}
                   </span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </MagneticButton>

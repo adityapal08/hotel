@@ -121,9 +121,16 @@ export default function Footer() {
             </span> */}
           </p>
 
-          <p className="text-[11px] text-gray-500">
-            Moratandi, Pondicherry • 3BHK Private Pool Villa
-          </p>
+          <div className="flex items-center gap-4 text-[11px] text-gray-500">
+            <span>Moratandi, Pondicherry • 3BHK Private Pool Villa</span>
+            <span>•</span>
+            <Link
+              href="/admin/bookings"
+              className="text-[#df9700]/80 hover:text-[#df9700] hover:underline transition-colors"
+            >
+              Admin Console
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

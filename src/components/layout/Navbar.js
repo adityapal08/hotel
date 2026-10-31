@@ -2,10 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, CalendarCheck, Phone, Sparkles } from 'lucide-react';
+import { Menu, X, CalendarCheck, Phone } from 'lucide-react';
 import BrandLogo from '@/components/ui/BrandLogo';
-import MagneticButton from '@/components/ui/MagneticButton';
 
+/**
+ * Premium Boutique Hotel Navbar:
+ * - Palette: Deep Burgundy (#762F3D), Dark Charcoal (#171719), Warm Ivory (#F7F3ED), White (#FFFFFF).
+ * - Architectural, sophisticated layout with generous spacing and balanced typography.
+ * - Restrained animations: subtle animated Burgundy underlines and fluid sticky scroll transition.
+ * - Prominent Deep Burgundy "Reserve Villa" CTA button.
+ */
 export default function Navbar({ onOpenModal }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -15,15 +21,10 @@ export default function Navbar({ onOpenModal }) {
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY || window.pageYOffset || 0;
-      // Smooth threshold for sticky transition
-      if (scrollY > 25) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      setIsScrolled(scrollY > 25);
 
       // Dynamic active section detection based on viewport position
-      const sections = ['home', 'about', 'gallery', 'contact'];
+      const sections = ['home', 'homestays', 'about', 'gallery', 'contact'];
       const scrollPosition = scrollY + 160;
 
       for (const section of sections) {
@@ -45,35 +46,30 @@ export default function Navbar({ onOpenModal }) {
   }, []);
 
   const navLinks = [
-    { label: 'HOME', href: '#home', id: 'home', num: '01' },
-    { label: 'ABOUT US', href: '#about', id: 'about', num: '02' },
-    { label: 'GALLERY', href: '#gallery', id: 'gallery', num: '03' },
-    { label: 'CONTACT US', href: '#contact', id: 'contact', num: '04' },
+    { label: 'Home', href: '/#home', id: 'home', num: '01' },
+    { label: 'Homestays', href: '/#homestays', id: 'homestays', num: '02' },
+    { label: 'About Us', href: '/#about', id: 'about', num: '03' },
+    { label: 'Gallery', href: '/#gallery', id: 'gallery', num: '04' },
+    { label: 'Contact', href: '/#contact', id: 'contact', num: '05' },
   ];
 
   return (
-    <motion.header
-      initial={{ y: -30, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className={`fixed top-0 inset-x-0 z-50 w-full transition-all duration-500 ${
+    <header
+      className={`fixed top-0 inset-x-0 z-50 w-full transition-all duration-300 ease-out ${
         isScrolled
-          ? 'bg-[#070c1b]/95 backdrop-blur-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.6)] py-2 sm:py-2.5 border-b border-[#c5a059]/30'
-          : 'bg-gradient-to-b from-[#070c1b]/90 via-[#070c1b]/65 to-transparent backdrop-blur-md py-3.5 sm:py-4 border-b border-white/10'
+          ? 'bg-[#171719]/96 backdrop-blur-md py-2.5 sm:py-3 border-b border-[#762F3D]/25 shadow-[0_4px_24px_rgba(0,0,0,0.35)]'
+          : 'bg-[#171719]/85 backdrop-blur-md py-3.5 sm:py-4 border-b border-[#F7F3ED]/10'
       }`}
     >
-      {/* Subtle top golden light ray */}
-      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#e5c384]/70 to-transparent pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between relative">
-        {/* Brand Logo Presentation with 3D Tilt, Starlight Particles & Breathing Halo */}
-        <div className="flex items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between relative">
+        {/* Left: Brand Logo Presentation */}
+        <div className="flex items-center flex-shrink-0">
           <BrandLogo isScrolled={isScrolled} />
         </div>
 
-        {/* Desktop Navigation Links with Magnetic Floating Capsule & Radiant Active Glow */}
+        {/* Center: Desktop Navigation Links */}
         <nav
-          className="hidden md:flex items-center gap-1 lg:gap-2 px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_8px_20px_rgba(0,0,0,0.3)]"
+          className="hidden md:flex items-center gap-6 lg:gap-8 xl:gap-10"
           onMouseLeave={() => setHoveredLink(null)}
         >
           {navLinks.map((link) => {
@@ -81,79 +77,65 @@ export default function Navbar({ onOpenModal }) {
             const isHovered = hoveredLink === link.id;
 
             return (
-              <motion.a
+              <a
                 key={link.id}
                 href={link.href}
-                whileHover={{ y: -1 }}
                 onMouseEnter={() => setHoveredLink(link.id)}
-                onClick={() => setHoveredLink(null)}
-                className={`relative px-4 py-2 text-xs lg:text-[13px] font-semibold tracking-[0.2em] uppercase transition-colors duration-200 rounded-full select-none ${
+                className={`relative py-1 text-[12px] lg:text-[13px] font-medium tracking-[0.18em] uppercase transition-colors duration-200 select-none ${
                   isActive
-                    ? 'text-[#e5c384] font-bold'
+                    ? 'text-white font-semibold'
                     : isHovered
                     ? 'text-white'
-                    : 'text-gray-300 hover:text-white'
+                    : 'text-[#F7F3ED]/75 hover:text-white'
                 }`}
               >
-                {/* 1. Floating Frosted Hover Capsule */}
-                {isHovered && (
-                  <motion.div
-                    layoutId="navHoverPill"
-                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                    className="absolute inset-0 bg-white/10 rounded-full border border-[#c5a059]/40 pointer-events-none shadow-[0_0_15px_rgba(197,160,89,0.2)]"
-                  />
-                )}
+                <span>{link.label}</span>
 
-                {/* 2. Animated Golden Navigation Underline */}
+                {/* Subtle Animated Deep Burgundy Underline */}
                 <motion.span
-                  className="absolute bottom-1 inset-x-3.5 h-[2px] bg-gradient-to-r from-[#c5a059] via-[#e5c384] to-[#c5a059] rounded-full pointer-events-none shadow-[0_0_8px_#e5c384]"
+                  className="absolute -bottom-1 left-0 right-0 h-[1.5px] bg-[#762F3D] rounded-full pointer-events-none"
                   initial={false}
                   animate={{
-                    scaleX: isHovered || isActive ? 1 : 0,
-                    opacity: isHovered || isActive ? 1 : 0,
+                    scaleX: isActive || isHovered ? 1 : 0,
+                    opacity: isActive || isHovered ? 1 : 0,
                   }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                   style={{ originX: 0.5 }}
                 />
-
-                <span className="relative z-10 flex items-center gap-1.5">
-                  {link.label}
-                  {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#e5c384] animate-pulse inline-block shadow-[0_0_6px_#e5c384]" />
-                  )}
-                </span>
-              </motion.a>
+              </a>
             );
           })}
         </nav>
 
-        {/* Right Action: Magnetic Luxury Reserve CTA Button */}
-        <div className="hidden md:flex items-center gap-3">
-          <MagneticButton
+        {/* Right: Reserve Villa Button (Deep Burgundy with White Text) */}
+        <div className="hidden md:flex items-center">
+          <button
+            type="button"
             onClick={onOpenModal}
-            className="px-5 py-2.5 text-xs font-bold tracking-[0.18em] shadow-[0_4px_20px_rgba(197,160,89,0.35)] hover:shadow-[0_6px_28px_rgba(197,160,89,0.6)]"
+            className="px-5 py-2.5 sm:px-6 sm:py-2.5 rounded-full bg-[#762F3D] text-white text-[11px] sm:text-xs font-semibold tracking-[0.16em] uppercase border border-[#762F3D] shadow-[0_2px_12px_rgba(118,47,61,0.28)] hover:bg-[#5F2530] hover:border-[#5F2530] hover:shadow-[0_4px_18px_rgba(118,47,61,0.42)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer flex items-center gap-2"
           >
-            <CalendarCheck className="w-3.5 h-3.5 stroke-[2.2] relative z-10 text-[#0b132b]" />
-            <span className="relative z-10 font-bold">Reserve Villa</span>
-          </MagneticButton>
+            <CalendarCheck className="w-3.5 h-3.5 stroke-[2.2] text-white" />
+            <span>Reserve Villa</span>
+          </button>
         </div>
 
-        {/* Mobile Header Controls */}
-        <div className="flex md:hidden items-center gap-2.5">
-          {/* Compact Mobile Reserve Trigger */}
-          <motion.button
-            whileTap={{ scale: 0.94 }}
+        {/* Mobile Header Controls (< md) */}
+        <div className="flex md:hidden items-center gap-2">
+          {/* Quick Mobile Reserve Trigger */}
+          <button
+            type="button"
             onClick={onOpenModal}
-            className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#c5a059] to-[#e5c384] text-[#070c1b] text-[11px] font-bold tracking-wider uppercase shadow-md flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded-full bg-[#762F3D] text-white text-[11px] font-semibold tracking-wider uppercase shadow-sm flex items-center gap-1.5 hover:bg-[#5F2530] transition-colors"
           >
             <CalendarCheck className="w-3 h-3 stroke-[2.2]" />
-            <span>Book</span>
-          </motion.button>
+            <span>Reserve</span>
+          </button>
 
-          {/* Animated Hamburger Icon Button */}
+          {/* Minimalist Mobile Hamburger Button */}
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white hover:text-[#e5c384] transition-colors focus:outline-none"
+            className="w-9 h-9 rounded-full bg-[#171719] border border-[#F7F3ED]/20 flex items-center justify-center text-[#F7F3ED] hover:text-white hover:border-[#F7F3ED]/40 transition-colors focus:outline-none"
             aria-label="Toggle navigation drawer"
           >
             <AnimatePresence mode="wait" initial={false}>
@@ -163,9 +145,9 @@ export default function Navbar({ onOpenModal }) {
                   initial={{ rotate: -90, opacity: 0 }}
                   animate={{ rotate: 0, opacity: 1 }}
                   exit={{ rotate: 90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.18 }}
                 >
-                  <X className="w-5 h-5 stroke-[2]" />
+                  <X className="w-4 h-4 stroke-[2]" />
                 </motion.div>
               ) : (
                 <motion.div
@@ -173,9 +155,9 @@ export default function Navbar({ onOpenModal }) {
                   initial={{ rotate: 90, opacity: 0 }}
                   animate={{ rotate: 0, opacity: 1 }}
                   exit={{ rotate: -90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.18 }}
                 >
-                  <Menu className="w-5 h-5 stroke-[2]" />
+                  <Menu className="w-4 h-4 stroke-[2]" />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -183,71 +165,74 @@ export default function Navbar({ onOpenModal }) {
         </div>
       </div>
 
-      {/* Cinematic Mobile Curtain Drawer */}
+      {/* Refined Mobile Navigation Drawer */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden bg-[#070c1b]/98 backdrop-blur-2xl border-t border-[#c5a059]/30 shadow-2xl overflow-hidden"
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="md:hidden bg-[#171719]/98 backdrop-blur-xl border-t border-[#762F3D]/30 shadow-2xl overflow-hidden"
           >
-            <div className="px-6 py-6 space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-white/10 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#e5c384]">
-                <Sparkles className="w-3 h-3" />
-                <span>Private Villa Sanctuary • Pondicherry</span>
+            <div className="px-5 py-5 space-y-4">
+              <div className="pb-2.5 border-b border-[#F7F3ED]/10 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#F7F3ED]/60">
+                <span>Red Roots Villa Sanctuary • Pondicherry</span>
               </div>
 
+              {/* Vertical Navigation Links */}
               <nav className="flex flex-col space-y-1">
-                {navLinks.map((link, idx) => (
-                  <motion.a
-                    key={link.id}
-                    href={link.href}
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 + idx * 0.06, duration: 0.3 }}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between py-3 border-b border-white/5 hover:text-[#e5c384] transition-colors group"
-                  >
-                    <span className="text-sm font-semibold tracking-[0.18em] uppercase text-gray-200 group-hover:text-[#e5c384] transition-colors">
-                      {link.label}
-                    </span>
-                    <span className="font-mono text-xs text-[#c5a059]/60 font-semibold">
-                      {link.num}
-                    </span>
-                  </motion.a>
-                ))}
+                {navLinks.map((link) => {
+                  const isActive = activeSection === link.id;
+
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center justify-between py-3 px-2 rounded-lg transition-colors border-b border-[#F7F3ED]/5 ${
+                        isActive
+                          ? 'text-white font-semibold border-l-2 border-l-[#762F3D] pl-3 bg-white/[0.03]'
+                          : 'text-[#F7F3ED]/80 hover:text-white hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className="text-xs font-medium tracking-[0.18em] uppercase">
+                        {link.label}
+                      </span>
+                      <span className="font-mono text-[10px] text-[#F7F3ED]/40">
+                        {link.num}
+                      </span>
+                    </a>
+                  );
+                })}
               </nav>
 
-              {/* Mobile Drawer Call & Reserve CTAs */}
+              {/* Mobile Drawer Action Buttons */}
               <div className="pt-2 space-y-2.5">
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.28 }}
+                <button
+                  type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
                     if (onOpenModal) onOpenModal();
                   }}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#c5a059] via-[#e5c384] to-[#c5a059] text-[#070c1b] font-bold text-xs uppercase tracking-[0.2em] shadow-lg flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-full bg-[#762F3D] hover:bg-[#5F2530] text-white font-semibold text-xs uppercase tracking-[0.18em] shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <CalendarCheck className="w-4 h-4 stroke-[2.2]" />
                   <span>Reserve The Villa</span>
-                </motion.button>
+                </button>
 
                 <a
                   href="tel:+919363432220"
-                  className="w-full py-2.5 rounded-xl border border-white/15 bg-white/5 text-gray-300 text-xs font-semibold tracking-wider flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+                  className="w-full py-2.5 rounded-full border border-[#F7F3ED]/20 bg-white/[0.03] text-[#F7F3ED]/80 hover:text-white text-xs font-medium tracking-wider flex items-center justify-center gap-2 hover:border-[#F7F3ED]/40 transition-colors"
                 >
-                  <Phone className="w-3.5 h-3.5 text-[#e5c384]" />
-                  <span>Call Concierge: +91 9363432220</span>
+                  <Phone className="w-3.5 h-3.5 text-[#762F3D]" />
+                  <span>Concierge: +91 9363432220</span>
                 </a>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </header>
   );
 }

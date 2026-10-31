@@ -93,11 +93,10 @@ export default function HeroSection({ onOpenModal }) {
                   delay: 0.2 + idx * 0.1,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className={`inline-block origin-bottom-left ${
-                  word === 'Coastal' || word === 'Luxury.'
+                className={`inline-block origin-bottom-left ${word === 'Coastal' || word === 'Luxury.'
                     ? 'italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-[#e5c384] via-[#f7e2b6] to-[#c5a059]'
                     : ''
-                }`}
+                  }`}
               >
                 {word}
               </motion.span>
